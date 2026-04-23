@@ -1,19 +1,32 @@
 const express = require("express");
-const http = require("http");
-const WebSocket = require("ws");
 const jwt = require("jsonwebtoken");
-const cors = require("cors");
-
-const { analyzeNode } = require("./aiEngine");
+const bcrypt = require("bcrypt");
 
 const app = express();
-app.use(cors());
 app.use(express.json());
-app.post("/register", (req, res) => {
+
+/* =========================
+   CONFIG
+========================= */
+
+const SECRET = "NOVARA_SECRET_KEY";
+
+/* =========================
+   IN-MEMORY DATABASE (TEMP)
+   (replace with Supabase later)
+========================= */
+
+const users = [];
+
+/* =========================
+   REGISTER (SECURE)
+========================= */
+
+app.post("/register", async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ error: "Missing fields" });
+    return res.status(400).json({ error: "Email and password required" });
   }
 
   const existing = users.find(u => u.email === email);
@@ -22,50 +35,84 @@ app.post("/register", (req, res) => {
     return res.status(400).json({ error: "User already exists" });
   }
 
-  users.push({ email, password });
+  // HASH PASSWORD (IMPORTANT UPGRADE)
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-  res.json({ message: "User created successfully" });
+  users.push({
+    email,
+    password: hashedPassword
+  });
+
+  res.json({ message: "User registered successfully" });
 });
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 
-// 🔐 LOGIN (SaaS CORE)
-app.post("/login", (req, res) => {
+/* =========================
+   LOGIN (JWT AUTH)
+========================= */
 
-  const { email } = req.body;
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
 
+  const user = users.find(u => u.email === email);
+
+  if (!user) {
+    return res.status(401).json({ error: "User not found" });
+  }
+
+  const isValid = await bcrypt.compare(password, user.password);
+
+  if (!isValid) {
+    return res.status(401).json({ error: "Invalid password" });
+  }
+
+  // CREATE TOKEN
   const token = jwt.sign(
-    { email },
-    "NOVARA_SECRET",
+    { email: user.email },
+    SECRET,
     { expiresIn: "1h" }
   );
 
-  res.json({ token });
+  res.json({
+    message: "Login successful",
+    token
+  });
 });
 
-// 🧠 DATA (LEVEL 8 API)
-let nodes = [
-  { id: "HARARE", load: 60 },
-  { id: "BULAWAYO", load: 50 },
-  { id: "MUTARE", load: 70 }
-];
+/* =========================
+   AUTH MIDDLEWARE (PROTECTED ROUTES)
+========================= */
 
-// ⚡ REAL TIME ENGINE (LEVEL 7)
-wss.on("connection", (ws) => {
+function auth(req, res, next) {
+  const token = req.headers.authorization;
 
-  setInterval(() => {
+  if (!token) {
+    return res.status(403).json({ error: "No token provided" });
+  }
 
-    nodes = nodes.map(n => ({
-      ...n,
-      load: Math.floor(Math.random() * 100)
-    }));
+  try {
+    const decoded = jwt.verify(token, SECRET);
+    req.user = decoded;
+    next();
+  } catch {
+    return res.status(403).json({ error: "Invalid token" });
+  }
+}
 
-    ws.send(JSON.stringify(nodes.map(analyzeNode)));
+/* =========================
+   PROTECTED TEST ROUTE
+========================= */
 
-  }, 3000);
-
+app.get("/dashboard", auth, (req, res) => {
+  res.json({
+    message: "Welcome to Novara Dashboard",
+    user: req.user
+  });
 });
 
-server.listen(3001, () => {
-  console.log("NOVARA RUNNING");
+/* =========================
+   START SERVER
+========================= */
+
+app.listen(3000, () => {
+  console.log("NOVARA SAAS BACKEND RUNNING");
 });

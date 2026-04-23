@@ -1,4 +1,4 @@
-const socket = new WebSocket("wss://YOUR_BACKEND");
+const socket = new WebSocket("wss://wss://YOUR-RENDER-URL.onrender.com");
 
 socket.onmessage = (event) => {
 

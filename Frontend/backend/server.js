@@ -22,20 +22,24 @@ const SECRET = "NOVARA_SECRET_KEY";
 const users = [];
 
 /* =========================
-   REGISTER (ADVANCED + WORKING)
+   REGISTER (FIXED)
 ========================= */
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
 
-  // validate input
+  // validation
   if (!email || !password) {
-    return res.status(400).json({ message: "Email and password required" });
+    return res.status(400).json({
+      message: "Email and password required"
+    });
   }
 
   // check if user exists
   const exists = users.find(u => u.email === email);
   if (exists) {
-    return res.status(400).json({ message: "User already exists" });
+    return res.status(400).json({
+      message: "User already exists"
+    });
   }
 
   try {
@@ -48,15 +52,19 @@ app.post("/register", async (req, res) => {
       password: hashedPassword
     });
 
-    res.json({ message: "User registered successfully" });
+    res.json({
+      message: "User registered successfully"
+    });
 
   } catch (err) {
-    res.status(500).json({ message: "Error registering user" });
+    res.status(500).json({
+      message: "Error registering user"
+    });
   }
 });
 
 /* =========================
-   LOGIN (JWT AUTH)
+   LOGIN (FIXED)
 ========================= */
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -64,14 +72,18 @@ app.post("/login", async (req, res) => {
   const user = users.find(u => u.email === email);
 
   if (!user) {
-    return res.status(401).json({ message: "User not found" });
+    return res.status(401).json({
+      message: "User not found"
+    });
   }
 
   try {
     const valid = await bcrypt.compare(password, user.password);
 
     if (!valid) {
-      return res.status(401).json({ message: "Incorrect password" });
+      return res.status(401).json({
+        message: "Incorrect password"
+      });
     }
 
     const token = jwt.sign(
@@ -86,7 +98,9 @@ app.post("/login", async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ message: "Login error" });
+    res.status(500).json({
+      message: "Login error"
+    });
   }
 });
 
@@ -97,20 +111,24 @@ function auth(req, res, next) {
   const token = req.headers.authorization;
 
   if (!token) {
-    return res.status(403).json({ message: "No token provided" });
+    return res.status(403).json({
+      message: "No token provided"
+    });
   }
 
   try {
     const decoded = jwt.verify(token, SECRET);
     req.user = decoded;
     next();
-  } catch {
-    res.status(403).json({ message: "Invalid token" });
+  } catch (err) {
+    res.status(403).json({
+      message: "Invalid token"
+    });
   }
 }
 
 /* =========================
-   PROTECTED ROUTE (TEST)
+   PROTECTED ROUTE
 ========================= */
 app.get("/dashboard", auth, (req, res) => {
   res.json({
@@ -120,15 +138,15 @@ app.get("/dashboard", auth, (req, res) => {
 });
 
 /* =========================
-   ROOT TEST (OPTIONAL)
+   ROOT TEST
 ========================= */
 app.get("/", (req, res) => {
   res.send("Novara backend is running");
 });
 
 /* =========================
-   START SERVER
+   START SERVER (FIXED)
 ========================= */
 app.listen(3000, () => {
-  console.log("NOVARA ADVANCED BACKEND RUNNING ON PORT 3000");
+  console.log("NOVARA BACKEND RUNNING ON PORT 3000");
 });

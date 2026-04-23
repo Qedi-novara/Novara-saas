@@ -9,7 +9,23 @@ const { analyzeNode } = require("./aiEngine");
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.post("/register", (req, res) => {
+  const { email, password } = req.body;
 
+  if (!email || !password) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const existing = users.find(u => u.email === email);
+
+  if (existing) {
+    return res.status(400).json({ error: "User already exists" });
+  }
+
+  users.push({ email, password });
+
+  res.json({ message: "User created successfully" });
+});
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
